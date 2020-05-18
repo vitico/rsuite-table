@@ -881,6 +881,30 @@ code {
   left: 2px;
   width: 10px;
 }
+.rs-table-column-group {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  width: 100%;
+}
+.rs-table-column-group-header {
+  border-bottom: 1px solid #eee;
+  position: absolute;
+  width: 100%;
+}
+.rs-table-column-group-header-content {
+  display: table-cell;
+  padding: 8px;
+}
+.rs-table-column-group-cell {
+  position: absolute;
+  border-right: 1px solid #eee;
+}
+.rs-table-column-group-cell-content {
+  display: table-cell;
+  padding: 8px;
+}
 .btn-toolbar {
   padding: 10px 0;
 }
