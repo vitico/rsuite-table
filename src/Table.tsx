@@ -1073,6 +1073,11 @@ class Table extends React.Component<TableProps, TableState> {
       this.props.onRowClick?.(rowData, event);
     };
   };
+  bindRowDoubleClick = (rowData: object) => {
+    return (event: React.MouseEvent) => {
+      this.props.onRowDoubleClick?.(rowData, event);
+    };
+  };
 
   bindRowContextMenu = (rowData: object) => {
     return (event: React.MouseEvent) => {
@@ -1094,6 +1099,7 @@ class Table extends React.Component<TableProps, TableState> {
       ...props,
       rowRef: this.bindTableRowsRef(props.key, rowData),
       onClick: this.bindRowClick(rowData),
+      onDoubelClick: this.bindRowDoubleClick(rowData),
       onContextMenu: this.bindRowContextMenu(rowData)
     };
 

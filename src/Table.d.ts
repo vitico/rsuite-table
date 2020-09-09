@@ -36,6 +36,7 @@ export interface TableProps extends StandardProps {
   cellBordered?: boolean;
   wordWrap?: boolean;
   onRowClick?: (rowData: object, event: React.MouseEvent) => void;
+  onRowDoubleClick?: (rowData: object, event: React.MouseEvent) => void;
   onRowContextMenu?: (rowData: object, event: React.MouseEvent) => void;
   onScroll?: (scrollX: number, scrollY: number) => void;
   onSortColumn?: (dataKey: string, sortType?: SortType) => void;
