@@ -1122,7 +1122,7 @@ function (_React$Component) {
     var rowProps = _extends({}, props, {
       rowRef: this.bindTableRowsRef(props.key, rowData),
       onClick: this.bindRowClick(rowData),
-      onDoubelClick: this.bindRowDoubleClick(rowData),
+      onDoubleClick: this.bindRowDoubleClick(rowData),
       onContextMenu: this.bindRowContextMenu(rowData)
     });
 
@@ -1605,6 +1605,7 @@ Table.propTypes = {
   cellBordered: PropTypes.bool,
   wordWrap: PropTypes.bool,
   onRowClick: PropTypes.func,
+  onRowDoubleClick: PropTypes.func,
   onRowContextMenu: PropTypes.func,
   onScroll: PropTypes.func,
   onSortColumn: PropTypes.func,
