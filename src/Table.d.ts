@@ -23,13 +23,13 @@ export interface TableProps extends StandardProps {
   data: object[];
   expandedRowKeys?: string[] | number[];
   height: number;
-  hover: boolean;
-  headerHeight: number;
-  locale: TableLocale;
+  hover?: boolean;
+  headerHeight?: number;
+  locale?: TableLocale;
   loading?: boolean;
   loadAnimation?: boolean;
-  minHeight: number;
-  rowHeight: number | ((rowData: object) => number);
+  minHeight?: number;
+  rowHeight?: number | ((rowData: object) => number);
   rowKey: string | number;
   isTree?: boolean;
   rowExpandedHeight?: number;
@@ -62,3 +62,7 @@ export interface TableProps extends StandardProps {
   onTouchMove?: (event: React.TouchEvent) => void; // for tests
   onDataUpdated?: (nextData: object[], scrollTo: (coord: { x: number; y: number }) => void) => void;
 }
+
+export declare const Table: React.ComponentType<TableProps>;
+
+export default Table;
