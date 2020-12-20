@@ -85,42 +85,55 @@ interface TableState {
   cacheData: object[];
   fixedHeader: boolean;
   fixedHorizontalScrollbar?: boolean;
+  isTree?: boolean;
   [key: string]: any;
 }
 
 class Table extends React.Component<TableProps, TableState> {
   static propTypes = {
-    width: PropTypes.number,
-    data: PropTypes.arrayOf(PropTypes.object),
-    height: PropTypes.number,
     autoHeight: PropTypes.bool,
-    minHeight: PropTypes.number,
-    rowHeight: PropTypes.oneOfType([PropTypes.number, PropTypes.func]),
-    headerHeight: PropTypes.number,
-    rowKey: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-    isTree: PropTypes.bool,
+    affixHeader: PropTypes.oneOfType([PropTypes.bool, PropTypes.number]),
+    affixHorizontalScrollbar: PropTypes.oneOfType([PropTypes.bool, PropTypes.number]),
+    bordered: PropTypes.bool,
+    bodyRef: PropTypes.func,
+    className: PropTypes.string,
+    classPrefix: PropTypes.string,
+    children: PropTypes.any,
+    cellBordered: PropTypes.bool,
+    data: PropTypes.arrayOf(PropTypes.object),
     defaultExpandAllRows: PropTypes.bool,
     defaultExpandedRowKeys: PropTypes.arrayOf(
       PropTypes.oneOfType([PropTypes.string, PropTypes.number])
     ),
+    defaultSortType: PropTypes.oneOfType([PropTypes.bool, PropTypes.string]),
+    disabledScroll: PropTypes.bool,
     expandedRowKeys: PropTypes.arrayOf(PropTypes.oneOfType([PropTypes.string, PropTypes.number])),
+    hover: PropTypes.bool,
+    height: PropTypes.number,
+    headerHeight: PropTypes.number,
+    locale: PropTypes.object,
+    loading: PropTypes.bool,
+    loadAnimation: PropTypes.bool,
+    minHeight: PropTypes.number,
+    rowKey: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    rowHeight: PropTypes.oneOfType([PropTypes.number, PropTypes.func]),
     renderTreeToggle: PropTypes.func,
     renderRowExpanded: PropTypes.func,
     rowExpandedHeight: PropTypes.number,
-    locale: PropTypes.object,
+    renderEmpty: PropTypes.func,
+    renderLoading: PropTypes.func,
+    rowClassName: PropTypes.oneOfType([PropTypes.func, PropTypes.string]),
+    rtl: PropTypes.bool,
     style: PropTypes.object,
     sortColumn: PropTypes.string,
     sortType: PropTypes.oneOfType([PropTypes.bool, PropTypes.string]),
-    defaultSortType: PropTypes.oneOfType([PropTypes.bool, PropTypes.string]),
-    disabledScroll: PropTypes.bool,
-    hover: PropTypes.bool,
-    loading: PropTypes.bool,
-    className: PropTypes.string,
-    classPrefix: PropTypes.string,
-    children: PropTypes.any,
-    bordered: PropTypes.bool,
-    cellBordered: PropTypes.bool,
+    showHeader: PropTypes.bool,
+    shouldUpdateScroll: PropTypes.bool,
+    translate3d: PropTypes.bool,
     wordWrap: PropTypes.bool,
+    width: PropTypes.number,
+    virtualized: PropTypes.bool,
+    isTree: PropTypes.bool,
     onRowClick: PropTypes.func,
     onRowDoubleClick: PropTypes.func,
     onRowContextMenu: PropTypes.func,
@@ -129,19 +142,7 @@ class Table extends React.Component<TableProps, TableState> {
     onExpandChange: PropTypes.func,
     onTouchStart: PropTypes.func,
     onTouchMove: PropTypes.func,
-    bodyRef: PropTypes.func,
-    loadAnimation: PropTypes.bool,
-    showHeader: PropTypes.bool,
-    rowClassName: PropTypes.oneOfType([PropTypes.func, PropTypes.string]),
-    virtualized: PropTypes.bool,
-    renderEmpty: PropTypes.func,
-    renderLoading: PropTypes.func,
-    translate3d: PropTypes.bool,
-    affixHeader: PropTypes.oneOfType([PropTypes.bool, PropTypes.number]),
-    affixHorizontalScrollbar: PropTypes.oneOfType([PropTypes.bool, PropTypes.number]),
-    rtl: PropTypes.bool,
-    onDataUpdated: PropTypes.func,
-    shouldUpdateScroll: PropTypes.bool
+    onDataUpdated: PropTypes.func
   };
   static defaultProps = {
     classPrefix: defaultClassPrefix('table'),
@@ -164,9 +165,10 @@ class Table extends React.Component<TableProps, TableState> {
   };
 
   static getDerivedStateFromProps(props: TableProps, state: TableState) {
-    if (props.data !== state.cacheData) {
+    if (props.data !== state.cacheData || props.isTree !== state.isTree) {
       return {
         cacheData: props.data,
+        isTree: props.isTree,
         data: props.isTree ? flattenData(props.data) : props.data
       };
     }
@@ -223,7 +225,7 @@ class Table extends React.Component<TableProps, TableState> {
       ? findRowKeys(data, rowKey, isFunction(renderRowExpanded))
       : defaultExpandedRowKeys || [];
 
-    const shouldFixedColumn = Array.from(children as Iterable<any>).some(
+    const shouldFixedColumn = Array.from(flatten(children as any) as Iterable<any>).some(
       (child: any) => child && child.props && child.props.fixed
     );
 
@@ -231,6 +233,7 @@ class Table extends React.Component<TableProps, TableState> {
       throw new Error('The `rowKey` is required when set isTree');
     }
     this.state = {
+      isTree,
       expandedRowKeys,
       shouldFixedColumn,
       cacheData: data,
@@ -322,18 +325,38 @@ class Table extends React.Component<TableProps, TableState> {
     return !eq(this.props, nextProps) || !isEqual(this.state, nextState);
   }
 
-  componentDidUpdate(prevProps: TableProps) {
-    this.calculateTableContextHeight(prevProps);
-    this.calculateTableContentWidth(prevProps);
-    this.calculateRowMaxHeight();
-    if (prevProps.data !== this.props.data) {
+  componentDidUpdate(prevProps: TableProps, prevState: TableState) {
+    const { rowHeight, data, height } = prevProps;
+
+    if (data !== this.props.data) {
+      this.calculateRowMaxHeight();
       this.props.onDataUpdated?.(this.props.data, this.scrollTo);
-      if (this.props.shouldUpdateScroll) {
+
+      const maxHeight =
+        this.props.data.length * (typeof rowHeight === 'function' ? rowHeight(null) : rowHeight);
+      // 当开启允许更新滚动条，或者滚动条位置大于表格的最大高度，则初始滚动条位置
+      if (this.props.shouldUpdateScroll || Math.abs(this.scrollY) > maxHeight) {
         this.scrollTo({ x: 0, y: 0 });
       }
     } else {
       this.updatePosition();
     }
+
+    if (
+      // 当 Table 的 data 发生变化，需要重新计算高度
+      data !== this.props.data ||
+      // 当 Table 的 height 属性发生变化，需要重新计算 Table 高度
+      height !== this.props.height ||
+      // 当 Table 内容区的高度发生变化需要重新计算
+      prevState.contentHeight !== this.state.contentHeight ||
+      // 当 expandedRowKeys 发生变化，需要重新计算 Table 高度，如果重算会导致滚动条不显示。
+      prevState.expandedRowKeys !== this.state.expandedRowKeys ||
+      prevProps.expandedRowKeys !== this.props.expandedRowKeys
+    ) {
+      this.calculateTableContextHeight(prevProps);
+    }
+
+    this.calculateTableContentWidth(prevProps);
   }
 
   componentWillUnmount() {
@@ -502,8 +525,8 @@ class Table extends React.Component<TableProps, TableState> {
 
         const cellProps = {
           ...omit(column.props, ['children']),
+          'aria-colindex': index + 1,
           left,
-          index,
           headerHeight,
           key: index,
           width: nextWidth,
@@ -514,6 +537,8 @@ class Table extends React.Component<TableProps, TableState> {
 
         if (showHeader && headerHeight) {
           const headerCellProps = {
+            // index 用于拖拽列宽时候（Resizable column），定义的序号
+            index,
             dataKey: columnChildren[1].props.dataKey,
             isHeaderCell: true,
             sortable: column.props.sortable,
@@ -627,8 +652,6 @@ class Table extends React.Component<TableProps, TableState> {
     index: number
   ) => {
     this._cacheCells = null;
-
-    console.log(index);
     this.setState({ isColumnResizing: false, [`${dataKey}_${index}_width`]: columnWidth });
 
     addStyle(this.mouseAreaRef.current, { display: 'none' });
@@ -1098,6 +1121,7 @@ class Table extends React.Component<TableProps, TableState> {
 
     const rowProps: TableRowProps = {
       ...props,
+      'aria-rowindex': (props.key as number) + 2,
       rowRef: this.bindTableRowsRef(props.key, rowData),
       onClick: this.bindRowClick(rowData),
       onDoubleClick: this.bindRowDoubleClick(rowData),
@@ -1132,11 +1156,11 @@ class Table extends React.Component<TableProps, TableState> {
   renderRow(props: TableRowProps, cells: any[], shouldRenderExpandedRow?: boolean, rowData?: any) {
     const { rowClassName } = this.props;
     const { shouldFixedColumn, width, contentWidth } = this.state;
-
+    const { depth, ...restRowProps } = props;
     if (typeof rowClassName === 'function') {
-      props.className = rowClassName(rowData);
+      restRowProps.className = rowClassName(rowData);
     } else {
-      props.className = rowClassName;
+      restRowProps.className = rowClassName;
     }
 
     const rowStyles: React.CSSProperties = {};
@@ -1179,7 +1203,7 @@ class Table extends React.Component<TableProps, TableState> {
       }
 
       return (
-        <Row {...props} style={rowStyles}>
+        <Row {...restRowProps} data-depth={depth} style={rowStyles}>
           {fixedLeftCellGroupWidth ? (
             <CellGroup
               fixed="left"
@@ -1214,7 +1238,7 @@ class Table extends React.Component<TableProps, TableState> {
     }
 
     return (
-      <Row {...props} style={rowStyles}>
+      <Row {...restRowProps} data-depth={depth} style={rowStyles}>
         <CellGroup>{mergeCells(cells)}</CellGroup>
         {shouldRenderExpandedRow && this.renderRowExpanded(rowData)}
       </Row>
@@ -1253,6 +1277,7 @@ class Table extends React.Component<TableProps, TableState> {
     const top = typeof affixHeader === 'number' ? affixHeader : 0;
     const headerHeight = this.getTableHeaderHeight();
     const rowProps: TableRowProps = {
+      'aria-rowindex': 1,
       rowRef: this.tableHeaderRef,
       width: rowWidth,
       height: this.getRowHeight(),
@@ -1283,7 +1308,11 @@ class Table extends React.Component<TableProps, TableState> {
     return (
       <React.Fragment>
         {(affixHeader === 0 || affixHeader) && header}
-        <div className={this.addPrefix('header-row-wrapper')} ref={this.headerWrapperRef}>
+        <div
+          role="rowgroup"
+          className={this.addPrefix('header-row-wrapper')}
+          ref={this.headerWrapperRef}
+        >
           {this.renderRow(rowProps, headerCells)}
         </div>
       </React.Fragment>
@@ -1352,7 +1381,7 @@ class Table extends React.Component<TableProps, TableState> {
             const expandedRowKeys = this.getExpandedRowKeys();
             depth = parents.length;
 
-            // 树节点如果被关闭，则不渲染
+            //  如果是 Tree Table,  判断当前的行是否展开/折叠，如果是折叠则不显示该行。
             if (!shouldShowRowByExpanded(expandedRowKeys, parents)) {
               continue;
             }
@@ -1422,6 +1451,7 @@ class Table extends React.Component<TableProps, TableState> {
     return (
       <div
         ref={this.tableBodyRef}
+        role="rowgroup"
         className={this.addPrefix('body-row-wrapper')}
         style={bodyStyles}
         onScroll={this.handleBodyScroll}
@@ -1454,7 +1484,7 @@ class Table extends React.Component<TableProps, TableState> {
   }
 
   renderScrollbar() {
-    const { disabledScroll, affixHorizontalScrollbar } = this.props;
+    const { disabledScroll, affixHorizontalScrollbar, id } = this.props;
     const { contentWidth, contentHeight, width, fixedHorizontalScrollbar } = this.state;
     const bottom = typeof affixHorizontalScrollbar === 'number' ? affixHorizontalScrollbar : 0;
 
@@ -1468,6 +1498,7 @@ class Table extends React.Component<TableProps, TableState> {
     return (
       <div>
         <Scrollbar
+          tableId={id}
           className={classNames({ fixed: fixedHorizontalScrollbar })}
           style={{ width, bottom: fixedHorizontalScrollbar ? bottom : undefined }}
           length={this.state.width}
@@ -1477,6 +1508,7 @@ class Table extends React.Component<TableProps, TableState> {
         />
         <Scrollbar
           vertical
+          tableId={id}
           length={height - headerHeight}
           scrollLength={contentHeight}
           onScroll={this.handleScrollY}
@@ -1512,6 +1544,7 @@ class Table extends React.Component<TableProps, TableState> {
     const {
       children,
       className,
+      data,
       width = 0,
       style,
       isTree,
@@ -1551,10 +1584,21 @@ class Table extends React.Component<TableProps, TableState> {
         value={{
           translateDOMPositionXY: this.translateDOMPositionXY,
           rtl: this.isRTL(),
+          isTree,
           hasCustomTreeCol
         }}
       >
-        <div {...unhandled} className={clesses} style={styles} ref={this.tableRef}>
+        <div
+          role={isTree ? 'treegrid' : 'grid'}
+          // The aria-rowcount is specified on the element with the table.
+          // Its value is an integer equal to the total number of rows available, including header rows.
+          aria-rowcount={data.length + 1}
+          aria-colcount={this._cacheChildrenSize}
+          {...unhandled}
+          className={clesses}
+          style={styles}
+          ref={this.tableRef}
+        >
           {showHeader && this.renderTableHeader(headerCells, rowWidth)}
           {children && this.renderTableBody(bodyCells, rowWidth)}
           {showHeader && this.renderMouseArea()}

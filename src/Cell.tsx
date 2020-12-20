@@ -6,6 +6,8 @@ import { isNullOrUndefined, defaultClassPrefix, getUnhandledProps, prefix } from
 import TableContext from './TableContext';
 import Column from './Column';
 import { CellProps } from './Cell.d';
+import ArrowRight from '@rsuite/icons/ArrowRight';
+import ArrowDown from '@rsuite/icons/ArrowDown';
 
 export const propTypes = {
   align: PropTypes.oneOf(['left', 'center', 'right']),
@@ -53,13 +55,13 @@ class Cell extends React.PureComponent<CellProps> {
   addPrefix = (name: string) => prefix(this.props.classPrefix)(name);
   isTreeCol() {
     const { treeCol, firstColumn } = this.props;
-    const { hasCustomTreeCol } = this.context;
+    const { hasCustomTreeCol, isTree } = this.context;
 
     if (treeCol) {
       return true;
     }
 
-    if (!hasCustomTreeCol && firstColumn) {
+    if (!hasCustomTreeCol && firstColumn && isTree) {
       return true;
     }
 
@@ -76,7 +78,8 @@ class Cell extends React.PureComponent<CellProps> {
   };
   renderTreeNodeExpandIcon() {
     const { rowData, renderTreeToggle, hasChildren, expanded } = this.props;
-    const expandButton = <i className={this.addPrefix('expand-icon')} />;
+    const ExpandIconComponent = expanded ? ArrowDown : ArrowRight;
+    const expandButton = <ExpandIconComponent className={this.addPrefix('expand-icon')} />;
 
     if (this.isTreeCol() && hasChildren) {
       return (
@@ -173,7 +176,12 @@ class Cell extends React.PureComponent<CellProps> {
     );
 
     return (
-      <div {...unhandledProps} className={classes} style={styles}>
+      <div
+        role={isHeaderCell ? 'columnheader' : 'gridcell'}
+        {...unhandledProps}
+        className={classes}
+        style={styles}
+      >
         <div className={this.addPrefix('content')} style={contentStyles}>
           {content}
         </div>

@@ -1,10 +1,19 @@
 import * as React from 'react';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
+import Sort from '@rsuite/icons/Sort';
+import SortUp from '@rsuite/icons/SortUp';
+import SortDown from '@rsuite/icons/SortDown';
+
 import ColumnResizeHandler from './ColumnResizeHandler';
 import { isNullOrUndefined, getUnhandledProps, defaultClassPrefix, prefix } from './utils';
 import Cell from './Cell';
 import { HeaderCellProps } from './HeaderCell.d';
+
+const SORTED_MAP = {
+  desc: SortDown,
+  asc: SortUp
+};
 
 interface HeaderCelltate {
   columnWidth?: number;
@@ -25,7 +34,8 @@ class HeaderCell extends React.PureComponent<HeaderCellProps, HeaderCelltate> {
     onColumnResizeMove: PropTypes.func,
     onSortColumn: PropTypes.func,
     flexGrow: PropTypes.number,
-    fixed: PropTypes.oneOfType([PropTypes.bool, PropTypes.oneOf(['left', 'right'])])
+    fixed: PropTypes.oneOfType([PropTypes.bool, PropTypes.oneOf(['left', 'right'])]),
+    children: PropTypes.node
   };
   static defaultProps = {
     classPrefix: defaultClassPrefix('table-cell-header')
@@ -99,12 +109,13 @@ class HeaderCell extends React.PureComponent<HeaderCellProps, HeaderCelltate> {
     const { sortable, sortColumn, sortType = '', dataKey } = this.props;
 
     if (sortable) {
+      const SortIcon = sortColumn === dataKey ? SORTED_MAP[sortType] : Sort;
       const iconClasses = classNames(this.addPrefix('icon-sort'), {
         [this.addPrefix(`icon-sort-${sortType}`)]: sortColumn === dataKey
       });
       return (
         <span className={this.addPrefix('sort-wrapper')}>
-          <i className={iconClasses} />
+          <SortIcon className={iconClasses} />
         </span>
       );
     }
@@ -121,6 +132,8 @@ class HeaderCell extends React.PureComponent<HeaderCellProps, HeaderCelltate> {
       left,
       sortable,
       classPrefix,
+      sortColumn,
+      sortType,
       ...rest
     } = this.props;
 
@@ -129,9 +142,21 @@ class HeaderCell extends React.PureComponent<HeaderCellProps, HeaderCelltate> {
     });
     const unhandledProps = getUnhandledProps(HeaderCell, rest);
 
+    let ariaSort;
+
+    if (sortColumn === dataKey) {
+      ariaSort = 'other';
+      if (sortType === 'asc') {
+        ariaSort = 'ascending';
+      } else if (sortType === 'desc') {
+        ariaSort = 'descending';
+      }
+    }
+
     return (
       <div className={classes}>
         <Cell
+          aria-sort={ariaSort}
           {...unhandledProps}
           width={width}
           dataKey={dataKey}

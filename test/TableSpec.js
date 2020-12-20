@@ -1,4 +1,5 @@
 import React from 'react';
+import ReactDOM from 'react-dom';
 import ReactTestUtils from 'react-dom/test-utils';
 import Table from '../src/Table';
 import Column from '../src/Column';
@@ -6,6 +7,18 @@ import Cell from '../src/Cell';
 
 import { getDOMNode, getInstance } from './TestWrapper';
 import HeaderCell from '../src/HeaderCell';
+
+let container;
+
+beforeEach(() => {
+  container = document.createElement('div');
+  document.body.appendChild(container);
+});
+
+afterEach(() => {
+  document.body.removeChild(container);
+  container = null;
+});
 
 describe('Table', () => {
   it('Should output a table', () => {
@@ -482,5 +495,208 @@ describe('Table', () => {
     );
     assert.equal(instanceDom.querySelectorAll('.rs-table-row.custom-row').length, 1);
     assert.equal(instanceDom.querySelectorAll('.rs-table-row.default-row').length, 2);
+  });
+
+  it('Should be fixed column', () => {
+    ReactTestUtils.act(() => {
+      ReactDOM.render(
+        <div style={{ width: 300 }} id="my-table">
+          <Table
+            showHeader={false}
+            data={[
+              {
+                id: 1,
+                name: 'a'
+              }
+            ]}
+          >
+            <Column width={200} fixed>
+              <HeaderCell>11</HeaderCell>
+              <Cell>12</Cell>
+            </Column>
+            <Column width={200}>
+              <HeaderCell>11</HeaderCell>
+              <Cell>12</Cell>
+            </Column>
+          </Table>
+        </div>,
+        container
+      );
+    });
+
+    const table = document.getElementById('my-table');
+
+    assert.equal(table.querySelectorAll('.rs-table-cell-group').length, 2);
+    assert.equal(table.querySelectorAll('.rs-table-cell-group-fixed-left').length, 1);
+  });
+
+  /**
+   * https://github.com/rsuite/rsuite/issues/1307
+   */
+  it('Should be fixed column for array column', () => {
+    const columns = [
+      <Column width={200} fixed key={1}>
+        <HeaderCell>11</HeaderCell>
+        <Cell>12</Cell>
+      </Column>,
+      <Column width={200} key={2}>
+        <HeaderCell>11</HeaderCell>
+        <Cell>12</Cell>
+      </Column>
+    ];
+    ReactTestUtils.act(() => {
+      ReactDOM.render(
+        <div style={{ width: 300 }} id="my-table2">
+          <Table
+            showHeader={false}
+            data={[
+              {
+                id: 1,
+                name: 'a'
+              }
+            ]}
+          >
+            {columns}
+          </Table>
+        </div>,
+        container
+      );
+    });
+
+    const table = document.getElementById('my-table2');
+
+    assert.equal(table.querySelectorAll('.rs-table-cell-group').length, 2);
+    assert.equal(table.querySelectorAll('.rs-table-cell-group-fixed-left').length, 1);
+  });
+
+  /**
+   * https://github.com/rsuite/rsuite/issues/1257
+   */
+  it('Should change data, after the isTree property is changed', () => {
+    const data = [
+      {
+        rowKey: 'a',
+        name: 'tets',
+        num: 1999,
+        children: [
+          {
+            name: 'test-1',
+            num: 1000
+          },
+          {
+            name: 'test-2',
+            num: 999
+          }
+        ]
+      }
+    ];
+    const App = React.forwardRef((props, ref) => {
+      const [tree, setTree] = React.useState(true);
+      React.useImperativeHandle(ref, () => ({
+        setTree
+      }));
+      return (
+        <div>
+          <Table
+            id="my-table3"
+            isTree={tree}
+            data={data}
+            showHeader={false}
+            rowKey="rowKey"
+            defaultExpandAllRows
+          >
+            <Column>
+              <HeaderCell>name</HeaderCell>
+              <Cell dataKey="name" />
+            </Column>
+            <Column>
+              <HeaderCell>num</HeaderCell>
+              <Cell dataKey="num" />
+            </Column>
+          </Table>
+        </div>
+      );
+    });
+    App.displayName = 'App';
+    const ref = React.createRef();
+    ReactTestUtils.act(() => {
+      ReactDOM.render(<App ref={ref} />, container);
+    });
+
+    const table = document.getElementById('my-table3');
+    assert.equal(table.querySelectorAll('.rs-table-row').length, 3);
+    ReactTestUtils.act(() => {
+      ref.current.setTree(false);
+    });
+
+    assert.equal(table.querySelectorAll('.rs-table-row').length, 1);
+  });
+
+  it('Should show a vertical scroll bar when the tree is expanded', () => {
+    const data = [
+      {
+        name: '1',
+        children: [
+          {
+            name: '1-1'
+          },
+          {
+            name: '1-2'
+          },
+          {
+            name: '1-3'
+          },
+          {
+            name: '1-4'
+          },
+          {
+            name: '1-5'
+          },
+          {
+            name: '1-6'
+          },
+          {
+            name: '1-7'
+          },
+          {
+            name: '1-8'
+          },
+          {
+            name: '1-9'
+          }
+        ]
+      }
+    ];
+    const App = () => {
+      return (
+        <div>
+          <Table id="tree-table" isTree data={data} showHeader={false} rowKey="name">
+            <Column>
+              <HeaderCell>name</HeaderCell>
+              <Cell dataKey="name" />
+            </Column>
+          </Table>
+        </div>
+      );
+    };
+    App.displayName = 'App';
+    ReactTestUtils.act(() => {
+      ReactDOM.render(<App />, container);
+    });
+
+    const table = document.getElementById('tree-table');
+    const expand = table.querySelector('.rs-table-cell-expand-icon');
+
+    // Tree 在展开前，显示 1 行，同时没有垂直滚动条。
+    assert.equal(table.querySelectorAll('.rs-table-row').length, 1);
+    assert.ok(table.querySelector('.rs-table-scrollbar-vertical.rs-table-scrollbar-hide'));
+
+    ReactTestUtils.act(() => {
+      ReactTestUtils.Simulate.click(expand);
+    });
+
+    // Tree 在展开后，显示 10 行，同时显示垂直滚动条。
+    assert.equal(table.querySelectorAll('.rs-table-row').length, 10);
+    assert.ok(!table.querySelector('.rs-table-scrollbar-vertical.rs-table-scrollbar-hide'));
   });
 });
