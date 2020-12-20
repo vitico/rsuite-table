@@ -1,10 +1,11 @@
 {
   "name": "rsuite-table",
   "version": "3.14.1",
-  "description": "A React table component",
+  "description": "A fork of rsuite-table, a React table component",
   "main": "lib/index.js",
   "typings": "lib/index.d.ts",
   "module": "es/index.js",
+  "private": true,
   "scripts": {
     "format": "prettier --write \"{src,test}/**/*.{tsx,ts,js}\"",
     "format:check": "prettier --list-different \"{src,test}/**/*.{tsx,ts,js}\"",
